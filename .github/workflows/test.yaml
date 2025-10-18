@@ -1,4 +1,4 @@
-name: TFL to Ruby Interpreter Test
+name: TFL Interpreter Test Suite
 
 on: [push, pull_request]
 
