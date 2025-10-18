@@ -1,37 +1,14 @@
-# tfl_runner.rb
+#!/usr/bin/env ruby
+# test_complex_tfl.rb
 #
-# Phase 6: Orchestration and Demonstration
-# This script loads the interpreter and runs several TFL expressions against
-# mock data to show the final, executable Ruby output.
+# Demonstrates complex TFL expressions using multiple runtime helpers
 
 require 'json'
 require_relative 'lib/tfl_interpreter/interpreter'
 require_relative 'lib/tfl_interpreter/runtime/helpers'
 
-# --- 1. Setup ---
-
-# Instantiate the main interpreter engine
-interpreter = TflInterpreter::Interpreter.new
-
-# Mock data structure, equivalent to a Tines event payload
-MOCK_DATA = {
-  "user_action" => {
-    "name" => "Alice",
-    "status" => "active",
-    "email" => "ALICE@EXAMPLE.COM"
-  },
-  "data_array" => [10, 20, 30],
-  "date_string" => "2024-06-15T12:34:56Z",
-  "message" => nil,
-  "nested" => {
-    "key" => "value"
-  }
-}.freeze
-
-# A class to provide the execution context for the generated Ruby code.
-# It includes the TflRuntime module so the generated code can access helpers
-# like 'tfl_get', 'tfl_JOIN', and the TFL_NULL constant.
-class TflRunnerContext
+# Execution context for generated Ruby code
+class TflTestContext
   include TflRuntime
   attr_reader :data
 
@@ -39,90 +16,131 @@ class TflRunnerContext
     @data = data
   end
 
-  # Executes the generated Ruby code string within this context.
   def run_tfl(ruby_code)
-    # The generated code expects a local variable named 'data_context'
-    # which is assigned from the @data instance variable.
     eval(ruby_code)
   end
 end
 
-
-# --- 2. Test Cases ---
-
-TFL_TEST_CASES = {
-  # # Simple Function Call (will use built-in Ruby method after transpilation)
-  # "Simple Function Call" => 'UPCASE("hello")',
-
-  # # Data Access (requires the safe tfl_get helper)
-  # "Safe Data Access" => 'user_action.name',
-
-  # # Handling missing data (should return TFL_NULL)
-  # "Missing Data Check" => 'missing_action.property',
-
-  # # Binary Operation (requires parenthesis and type checking)
-  # "Binary Logic" => 'user_action.status = "active"',
-
-  # # Conditional Logic (requires tfl_IF helper)
-  # "Conditional IF" => 'IF(data_array[0] > 5, "Large Array", "Small Array")',
-
-  # # Function Chaining (requires sequential assignments via Interpreter)
-  # "Function Chaining" => 'user_action.email |> DOWNCASE(%) |> DEFAULT(%, "unknown")',
-
-  # # Nested function calls (demonstrates recursive AST traversal)
-  # "Nested Call" => 'SIZE(data_array)',
-
-  # # Parse a date
-  # "Date Parsing" => 'DATE("twenty-four days ago", "%Y-%m-%d")',
-
-  # # JOIN function
-  # "Join Array" => 'JOIN([1,2,3,4,5]), "-")',
-
-  # # Size
-  # "Size" => 'SIZE(DATE("three days ago", "%s"))',
-
-  # #Literal Array
-  # "SizeLiteralArray" => 'SIZE([1,2,3,4,5,6])',
-
-  # "APPEND Simple" => 'APPEND("app", "end", "ing")',
-  # "APPEND With Data" => 'APPEND(user_action.name, " is ", user_action.status)',
-  # "APPEND With Null" => 'APPEND("hello", missing_action.property, "world")',
-
-  # "test" => "JOIN([JOIN([12,23]),3,4,5])"
-  "DATE" => 'DATE("01/02/2023")'
+# --- Mock Data ---
+MOCK_DATA = {
+  "user" => {
+    "name" => "Alice Johnson",
+    "email" => "ALICE@EXAMPLE.COM",
+    "age" => 28,
+    "score" => -15.5,
+    "tags" => ["ruby", "python", "javascript"]
+  },
+  "transactions" => [
+    { "amount" => -150, "date" => "2024-01-15" },
+    { "amount" => 200, "date" => "2024-02-20" },
+    { "amount" => -75.50, "date" => "2024-03-10" }
+  ],
+  "metadata" => {
+    "created_at" => "2024-06-15T12:34:56Z",
+    "status" => "active"
+  }
 }.freeze
 
+# --- Complex TFL Test Cases ---
+COMPLEX_TESTS = {
+  "User Profile Summary" =>
+    'APPEND(user.name, " (", DOWNCASE(user.email), ") - Age: ", user.age)',
 
-# --- 3. Execution ---
+  "Absolute Score with Default" =>
+    'DEFAULT(ABS(user.score), 0)',
 
-puts "--- TFL Interpreter Demo ---"
-puts "Mock Input Data: #{MOCK_DATA.to_json}"
-puts "---------------------------\n\n"
+  "Tag List Formatter" =>
+    'APPEND("Skills: ", UPCASE(JOIN(user.tags, ", ")))',
 
-context = TflRunnerContext.new(MOCK_DATA)
+  "Conditional Message with ABS" =>
+    'IF(ABS(user.score) > 10, APPEND("High score: ", ABS(user.score)), "Low score")',
 
-result = context.tfl_DATE("01/02/2023", "%Y-%m-%d")
-puts(context)
+  "Transaction Count Check" =>
+    'IF(SIZE(transactions) > 0, APPEND("You have ", SIZE(transactions), " transactions"), "No transactions")',
 
-TFL_TEST_CASES.each do |title, tfl_expression|
-  puts "TFL Expression: #{tfl_expression}"
+  "Nested Data Access with Formatting" =>
+    'APPEND("Status: ", UPCASE(metadata.status), " | Created: ", DATE(metadata.created_at, "%B %d, %Y"))',
 
-  # 1. Transpile the TFL expression to Ruby
-  ruby_code = interpreter.transpile(tfl_expression, data_context_name: 'data_context')
+  "Complex Conditional with Multiple Functions" =>
+    'IF(SIZE(user.tags) > 2, APPEND(user.name, " knows ", SIZE(user.tags), " languages!"), DEFAULT(user.name, "Unknown"))',
 
-  puts "\n  -> Generated Ruby Code:"
-  # Print the generated code without the boilerplate comments for brevity
-  puts ruby_code.split("\n")[4..-2].map { |line| "     #{line}" }.join("\n")
+  "Absolute Values with Array Size" =>
+    'APPEND("Score magnitude: ", ABS(user.score), " | Tag count: ", SIZE(user.tags))',
 
-  # 2. Execute the generated Ruby code within the context
-  begin
-    result = context.run_tfl(ruby_code)
+  "Multi-level Data Access" =>
+    'APPEND(UPCASE(user.name), " - ", JOIN(user.tags, " & "), " - ", SIZE(transactions), " txns")',
 
-    # 3. Display the result
-    puts "\n  -> Execution Result: #{result.is_a?(String) ? "\"#{result}\"" : result}"
-    puts "--------------------------------------------------------------------------------"
-  rescue StandardError => e
-    puts "\n  -> !!! ERROR DURING EXECUTION: #{e.message}"
-    puts "--------------------------------------------------------------------------------"
+  "Date Formatting with Conditionals" =>
+    'IF(metadata.status = "active", DATE(metadata.created_at, "%Y-%m-%d %H:%M"), "Inactive")',
+
+  "Chained String Operations" =>
+    'UPCASE(APPEND("Hello ", user.name, "!"))',
+
+  "Array Size Comparison" =>
+    'IF(SIZE(user.tags) > SIZE(transactions), "More tags than transactions", "More transactions than tags")',
+
+  "Missing Data with Defaults and ABS" =>
+    'ABS(DEFAULT(user.balance, -100))',
+
+  "Complex NOT Logic" =>
+    'IF(NOT(user.score > 0), APPEND("Negative score: ", ABS(user.score)), "Positive score")',
+
+  "Nested IF with Multiple Functions" =>
+    'IF(SIZE(user.tags) > 0, IF(ABS(user.score) > 10, "Skilled and high scoring", "Skilled but low score"), "No skills listed")'
+}.freeze
+
+# --- Execution ---
+def run_tests
+  interpreter = TflInterpreter::Interpreter.new
+  context = TflTestContext.new(MOCK_DATA)
+
+  puts "=" * 80
+  puts "COMPLEX TFL EXPRESSION TESTS"
+  puts "=" * 80
+  puts "\nMock Data:"
+  puts JSON.pretty_generate(MOCK_DATA)
+  puts "\n" + "=" * 80 + "\n\n"
+
+  COMPLEX_TESTS.each_with_index do |(title, tfl_expr), index|
+    puts "Test #{index + 1}: #{title}"
+    puts "-" * 80
+    puts "TFL Expression:"
+    puts "  #{tfl_expr}"
+    puts
+
+    begin
+      # Transpile TFL to Ruby
+      ruby_code = interpreter.transpile(tfl_expr, data_context_name: 'data_context')
+
+      # Show generated Ruby (without boilerplate comments)
+      ruby_lines = ruby_code.split("\n")[4..-2]
+      puts "Generated Ruby:"
+      ruby_lines.each { |line| puts "  #{line}" }
+      puts
+
+      # Execute
+      result = context.run_tfl(ruby_code)
+
+      # Display result
+      puts "Result:"
+      if result == TflRuntime::TFL_NULL
+        puts "  TFL_NULL"
+      elsif result.is_a?(String)
+        puts "  \"#{result}\""
+      else
+        puts "  #{result} (#{result.class})"
+      end
+
+    rescue StandardError => e
+      puts "ERROR: #{e.message}"
+      puts e.backtrace.first(3).map { |line| "  #{line}" }.join("\n")
+    end
+
+    puts "\n" + "=" * 80 + "\n\n"
   end
+end
+
+# Run the tests
+if __FILE__ == $0
+  run_tests
 end

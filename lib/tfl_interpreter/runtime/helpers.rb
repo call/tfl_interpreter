@@ -51,7 +51,39 @@ module TflRuntime
 
   # --- TFL FUNCTION IMPLEMENTATIONS ---
 
-  # ...existing code...
+  # ABS: Returns the absolute value of a number.
+  # Handles numbers and strings containing numbers.
+  def tfl_ABS(value)
+    return TFL_NULL if value.nil? || value == TFL_NULL
+
+    # If it's a string, try to convert it to a number
+    if value.is_a?(String)
+      # Try to parse as integer or float
+      begin
+        if value.include?('.')
+          value = Float(value)
+        else
+          value = Integer(value)
+        end
+      rescue ArgumentError
+        # String doesn't contain a valid number
+        return TFL_NULL
+      end
+    end
+
+    # Ensure we have a numeric value
+    return TFL_NULL unless value.is_a?(Numeric)
+
+    # Return the absolute value
+    result = value.abs
+
+    # Return as integer if it's a whole number, otherwise as float
+    if result.is_a?(Float) && result == result.to_i
+      result.to_i
+    else
+      result
+    end
+  end
 
   # APPEND: Joins two or more pieces of text together.
   # Converts all arguments to strings and concatenates them.
