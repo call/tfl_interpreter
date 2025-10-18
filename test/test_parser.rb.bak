@@ -1,11 +1,11 @@
 # test/test_parser.rb
 require 'minitest/autorun'
-require_relative '../lib/tfl_to_ruby/lexer'
-require_relative '../lib/tfl_to_ruby/parser'
-require_relative '../lib/tfl_to_ruby/ast'
+require_relative '../lib/tfl_interpreter/lexer'
+require_relative '../lib/tfl_interpreter/parser'
+require_relative '../lib/tfl_interpreter/ast'
 
 class TestParser < Minitest::Test
-  include TflToRuby
+  include TflInterpreter
 
   # Helper method to tokenize and parse a TFL string
   def parse_tfl(tfl_string)

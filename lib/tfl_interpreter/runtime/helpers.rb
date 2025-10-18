@@ -1,4 +1,4 @@
-# lib/tfl_to_ruby/runtime/helpers.rb
+# lib/tfl_interpreter/runtime/helpers.rb
 #
 # Phase 4.1: TFL Runtime Environment
 # This module provides the safe utility methods necessary to emulate Tines'
@@ -186,5 +186,94 @@ module TflRuntime
   rescue => e
     # If any error occurs during parsing or formatting, return TFL_NULL
     TFL_NULL
+  end
+
+    # ...existing code...
+
+  # LAMBDA: Creates a custom, reusable function.
+  # The last argument is a block (Proc) that represents the calculation.
+  # All previous arguments are parameter names (as symbols or strings).
+  # Returns a Proc that can be called with arguments matching the parameters.
+  #
+  # In Ruby, this is implemented by accepting a block and returning it wrapped
+  # with parameter binding logic.
+  #
+  # Example: tfl_LAMBDA(:x, :y) { |x, y| x + y }
+  def tfl_LAMBDA(*param_names, &block)
+    return TFL_NULL unless block_given?
+
+    # Return a Proc that accepts the specified number of arguments
+    # and calls the block with them
+    lambda do |*args|
+      # Ensure we have the right number of arguments
+      if args.length != param_names.length
+        return TFL_NULL
+      end
+
+      # Call the block with the provided arguments
+      begin
+        block.call(*args)
+      rescue => e
+        TFL_NULL
+      end
+    end
+  end
+
+  # FILTER: Filters an array based on a lambda function condition.
+  # Returns a new array containing only elements where the lambda returns truthy.
+  def tfl_FILTER(array, lambda_func)
+    return TFL_NULL if array.nil? || array == TFL_NULL
+    return TFL_NULL unless array.is_a?(Array)
+    return TFL_NULL if lambda_func.nil? || !lambda_func.respond_to?(:call)
+
+    result = []
+    array.each do |element|
+      begin
+        condition = lambda_func.call(element)
+        # Use TFL truthiness rules: only false and TFL_NULL are falsy
+        if condition != false && condition != TFL_NULL
+          result << element
+        end
+      rescue => e
+        # If the lambda raises an error, skip this element
+        next
+      end
+    end
+
+    result
+  end
+
+  # MATCH: Tests if a string matches a regex pattern.
+  # Returns true if it matches, false otherwise.
+  def tfl_MATCH(text, pattern)
+    return TFL_NULL if text.nil? || text == TFL_NULL
+    return TFL_NULL if pattern.nil? || pattern == TFL_NULL
+
+    begin
+      regex = Regexp.new(pattern.to_s)
+      text.to_s.match?(regex)
+    rescue RegexpError => e
+      TFL_NULL
+    end
+  end
+
+  # INCLUDES: Checks if an array includes a specific value.
+  # Returns true if the value is found, false otherwise.
+  def tfl_INCLUDES(array, value)
+    return TFL_NULL if array.nil? || array == TFL_NULL
+    return false unless array.is_a?(Array)
+
+    array.include?(value)
+  end
+
+  # NOT: Logical NOT operation.
+  # Returns the opposite boolean value, using TFL truthiness rules.
+  def tfl_NOT(value)
+    # In TFL, only false and TFL_NULL are falsy
+    if value == false || value == TFL_NULL
+      true
+    else
+      false
+    end
   end
 end

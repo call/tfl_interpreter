@@ -1,6 +1,6 @@
-# lib/tfl_to_ruby/transpiler.rb
+# lib/tfl_interpreter/interpreter.rb
 #
-# Phase 5: The Transpiler Orchestrator
+# Phase 5: The Interpreter Orchestrator
 # This class manages the entire pipeline: Lexing, Parsing, and Code Generation.
 
 require_relative 'lexer'
@@ -8,8 +8,8 @@ require_relative 'parser'
 require_relative 'ast'
 require_relative 'runtime/helpers'
 
-module TflToRuby
-  class Transpiler
+module TflInterpreter
+  class Interpreter
     # The primary method to convert a TFL string into executable Ruby code.
     #
     # @param tfl_expression [String] The source Tines Function Language string.

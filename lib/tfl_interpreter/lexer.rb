@@ -1,8 +1,8 @@
-# lib/tfl_to_ruby/lexer.rb
+# lib/tfl_interpreter/lexer.rb
 #
 # Phase 2.1: Lexical Analysis (Tokenization)
 
-module TflToRuby
+module TflInterpreter
   # --- 1. Token Definition ---
   # A simple struct to hold the token type and the value (literal or source text).
   # This makes the output of the Lexer easy for the Parser to consume.

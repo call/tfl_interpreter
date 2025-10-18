@@ -1,17 +1,17 @@
 # tfl_runner.rb
 #
 # Phase 6: Orchestration and Demonstration
-# This script loads the transpiler and runs several TFL expressions against
+# This script loads the interpreter and runs several TFL expressions against
 # mock data to show the final, executable Ruby output.
 
 require 'json'
-require_relative 'lib/tfl_to_ruby/transpiler'
-require_relative 'lib/tfl_to_ruby/runtime/helpers'
+require_relative 'lib/tfl_interpreter/interpreter'
+require_relative 'lib/tfl_interpreter/runtime/helpers'
 
 # --- 1. Setup ---
 
-# Instantiate the main transpiler engine
-transpiler = TflToRuby::Transpiler.new
+# Instantiate the main interpreter engine
+interpreter = TflInterpreter::Interpreter.new
 
 # Mock data structure, equivalent to a Tines event payload
 MOCK_DATA = {
@@ -66,7 +66,7 @@ TFL_TEST_CASES = {
   # # Conditional Logic (requires tfl_IF helper)
   # "Conditional IF" => 'IF(data_array[0] > 5, "Large Array", "Small Array")',
 
-  # # Function Chaining (requires sequential assignments via Transpiler)
+  # # Function Chaining (requires sequential assignments via Interpreter)
   # "Function Chaining" => 'user_action.email |> DOWNCASE(%) |> DEFAULT(%, "unknown")',
 
   # # Nested function calls (demonstrates recursive AST traversal)
@@ -95,7 +95,7 @@ TFL_TEST_CASES = {
 
 # --- 3. Execution ---
 
-puts "--- TFL Transpiler Demo ---"
+puts "--- TFL Interpreter Demo ---"
 puts "Mock Input Data: #{MOCK_DATA.to_json}"
 puts "---------------------------\n\n"
 
@@ -108,7 +108,7 @@ TFL_TEST_CASES.each do |title, tfl_expression|
   puts "TFL Expression: #{tfl_expression}"
 
   # 1. Transpile the TFL expression to Ruby
-  ruby_code = transpiler.transpile(tfl_expression, data_context_name: 'data_context')
+  ruby_code = interpreter.transpile(tfl_expression, data_context_name: 'data_context')
 
   puts "\n  -> Generated Ruby Code:"
   # Print the generated code without the boilerplate comments for brevity

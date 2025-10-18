@@ -1,4 +1,4 @@
-# lib/tfl_to_ruby/ast.rb
+# lib/tfl_interpreter/ast.rb
 #
 # Phase 2.2 / Phase 4.2: Abstract Syntax Tree (AST) Definition & Code Generation
 #
@@ -7,7 +7,7 @@
 
 require_relative 'runtime/helpers'
 
-module TflToRuby
+module TflInterpreter
   # Include the TFL runtime methods and constants (like TFL_NULL)
   include TflRuntime
 
@@ -70,7 +70,7 @@ module TflToRuby
 
   # Represents the special TFL placeholder '%' used in function chaining.
   class ChainResult < Node
-    # This node generates a simple variable name that the final Transpiler class
+    # This node generates a simple variable name that the final Interpreter class
     # will use to pass the intermediate result during chaining.
     def to_ruby(context_variable: 'data_context')
       '_tfl_result'
@@ -167,7 +167,7 @@ module TflToRuby
     end
 
     # For chains, we return a list of expressions to be sequentially executed by
-    # the main Transpiler loop, with the result of each step assigned to _tfl_result.
+    # the main Interpreter loop, with the result of each step assigned to _tfl_result.
     def to_ruby(context_variable: 'data_context')
       # Get the Ruby code for the left side (could be another chain or a simple expression)
       left_expr_ruby = @left.to_ruby(context_variable: context_variable)
@@ -181,6 +181,66 @@ module TflToRuby
         left_expr_ruby + [right_call_ruby]
       else
         [left_expr_ruby, right_call_ruby]
+      end
+    end
+  end
+
+  # Represents a LAMBDA function definition
+  class LambdaExpression < Node
+    attr_reader :param_names, :body_expr
+
+    def initialize(param_names, body_expr)
+      @param_names = param_names
+      @body_expr = body_expr
+    end
+
+    def to_ruby(context_variable: 'data_context')
+      params = @param_names.join(', ')
+
+      # When generating the body, we need to replace data references
+      # that match parameter names with direct variable references
+      body_ruby = convert_params_in_expression(@body_expr, @param_names, context_variable)
+
+      "lambda { |#{params}| #{body_ruby} }"
+    end
+
+    private
+
+    def convert_params_in_expression(expr, param_names, context_variable)
+      case expr
+      when DataReference
+        # If this is a simple reference to a parameter, replace it
+        if expr.segments.length == 1 && param_names.include?(expr.segments[0])
+          return expr.segments[0]
+        end
+        # Otherwise, check if the first segment is a parameter
+        if param_names.include?(expr.segments[0])
+          # Convert to parameter access: element.name becomes element['name']
+          first = expr.segments[0]
+          rest = expr.segments[1..]
+          rest_access = rest.map { |seg|
+            seg.is_a?(String) ? "['#{seg}']" : "[#{seg.to_ruby(context_variable: context_variable)}]"
+          }.join
+          return "#{first}#{rest_access}"
+        end
+        expr.to_ruby(context_variable: context_variable)
+      when FunctionCall
+        # Recursively convert parameters in function arguments
+        args_ruby = expr.arguments.map { |arg|
+          convert_params_in_expression(arg, param_names, context_variable)
+        }.join(', ')
+        "tfl_#{expr.name.upcase}(#{args_ruby})"
+      when BinaryOperation
+        left = convert_params_in_expression(expr.left, param_names, context_variable)
+        right = convert_params_in_expression(expr.right, param_names, context_variable)
+        operator_map = {
+          EQUAL: '==', NOT_EQUAL: '!=', GREATER: '>', LESS: '<',
+          GREATER_EQUAL: '>=', LESS_EQUAL: '<=',
+          PLUS: '+', MINUS: '-', STAR: '*', SLASH: '/'
+        }
+        "(#{left} #{operator_map[expr.operator]} #{right})"
+      else
+        expr.to_ruby(context_variable: context_variable)
       end
     end
   end

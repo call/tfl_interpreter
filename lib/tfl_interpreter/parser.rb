@@ -1,12 +1,12 @@
-# lib/tfl_to_ruby/parser.rb
+# lib/tfl_interpreter/parser.rb
 #
 # Phase 2.2: Parser (Token Stream -> AST)
 require_relative 'lexer'
 require_relative 'ast'
 
-module TflToRuby
+module TflInterpreter
   class Parser
-    include TflToRuby # Include the module to access Token and AST classes
+    include TflInterpreter # Include the module to access Token and AST classes
 
     # Define operator precedence for binary operations (highest to lowest)
     PRECEDENCE = {
@@ -176,6 +176,55 @@ module TflToRuby
       consume(:RPAREN, "Mismatched parentheses. Expected ')' after function arguments")
 
       FunctionCall.new(name_token.value, arguments)
+    end
+
+    def parse_function_call
+      func_name = consume(:IDENTIFIER).value
+      consume(:LPAREN)
+
+      # Special handling for LAMBDA function
+      if func_name.upcase == "LAMBDA"
+        return parse_lambda_function
+      end
+
+      # Parse normal function arguments
+      arguments = []
+      unless peek.type == :RPAREN
+        loop do
+          arguments << parse_expression(0)
+          break unless peek.type == :COMMA
+          consume(:COMMA)
+        end
+      end
+
+      consume(:RPAREN)
+      FunctionCall.new(func_name, arguments)
+    end
+
+    # Parses a LAMBDA function specially
+    # LAMBDA(param1, param2, ..., expression)
+    def parse_lambda_function
+      param_names = []
+
+      # Parse parameters (all arguments except the last)
+      # Keep parsing identifiers until we hit the last argument
+      loop do
+        if peek.type == :IDENTIFIER && @tokens[@current + 1] && @tokens[@current + 1].type == :COMMA
+          # This is a parameter name
+          param_names << advance.value
+          consume(:COMMA)
+        else
+          # This is the last argument - the body expression
+          break
+        end
+      end
+
+      # Parse the body expression (the calculation)
+      body_expr = parse_expression(0)
+
+      consume(:RPAREN, "Expected ')' after LAMBDA body")
+
+      LambdaExpression.new(param_names, body_expr)
     end
   end
 end
