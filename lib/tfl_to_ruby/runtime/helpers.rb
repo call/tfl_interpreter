@@ -51,6 +51,24 @@ module TflRuntime
 
   # --- TFL FUNCTION IMPLEMENTATIONS ---
 
+  # ...existing code...
+
+  # APPEND: Joins two or more pieces of text together.
+  # Converts all arguments to strings and concatenates them.
+  def tfl_APPEND(*args)
+    # If no arguments provided, return empty string
+    return "" if args.empty?
+
+    # Convert each argument to string, handling nil/TFL_NULL
+    args.map do |arg|
+      if arg.nil? || arg == TFL_NULL
+        ""
+      else
+        arg.to_s
+      end
+    end.join
+  end
+
   # SIZE: Returns the size of an array/collection or the length of a string.
   # Returns 0 if the value is TFL_NULL or has no defined size.
   def tfl_SIZE(value)
@@ -96,10 +114,77 @@ module TflRuntime
     value
   end
 
-  # Placeholder for JOIN function if needed later
-  def tfl_JOIN(array, separator)
-    # Simple implementation: ignores separator if array is not an array.
-    return TFL_NULL unless array.is_a?(Array) && separator.is_a?(String)
-    array.join(separator)
+  # JOIN: Combines elements of an array into a single text value using a separator.
+  # Returns TFL_NULL for non-array inputs. Handles conversion of array elements to strings.
+  def tfl_JOIN(array, separator = " ")
+    return TFL_NULL if array.nil? || array == TFL_NULL
+
+    # If array isn't actually an array, return TFL_NULL
+    return TFL_NULL unless array.is_a?(Array)
+
+    # Convert separator to string if it's not already
+    separator = separator.to_s
+
+    # Convert each element to string, handling nil/TFL_NULL
+    elements = array.map do |elem|
+      if elem.nil? || elem == TFL_NULL
+        ""
+      else
+        elem.to_s
+      end
+    end
+
+    # Join the elements
+    elements.join(separator)
+  end
+
+  # DATE: Takes a date (string, integer, or DATE_PARSE object) and returns a formatted string.
+  # Uses strftime syntax for formatting and tz database timezone names.
+  # Natural language parsing via chronic with EU date format as default for ambiguous dates.
+  def tfl_DATE(date, format = nil, timezone = "UTC")
+    return TFL_NULL if date.nil? || date == TFL_NULL
+
+    require 'chronic'
+    require 'tzinfo'
+
+    # Parse the date into a Time object
+    time_obj = nil
+
+    if date.is_a?(Integer)
+      # Treat as Unix timestamp
+      time_obj = Time.at(date)
+    elsif date.is_a?(String)
+      # Use chronic for natural language parsing
+      # Set endian_precedence to :little for EU format (DD/MM/YYYY)
+      time_obj = Chronic.parse(date, endian_precedence: :little)
+    elsif date.is_a?(Time)
+      time_obj = date
+    elsif date.is_a?(Hash) && date[:parsed_time]
+      # DATE_PARSE object (assuming it returns a hash with :parsed_time key)
+      time_obj = date[:parsed_time]
+    end
+
+    return TFL_NULL if time_obj.nil?
+
+    # Convert to specified timezone if provided
+    if timezone && !timezone.empty?
+      begin
+        tz = TZInfo::Timezone.get(timezone)
+        time_obj = tz.to_local(time_obj.utc)
+      rescue TZInfo::InvalidTimezoneIdentifier
+        # Invalid timezone, return TFL_NULL or keep original time
+        return TFL_NULL
+      end
+    end
+
+    # Apply format if provided, otherwise return ISO8601
+    if format && !format.empty?
+      return time_obj.strftime(format)
+    else
+      return time_obj.iso8601
+    end
+  rescue => e
+    # If any error occurs during parsing or formatting, return TFL_NULL
+    TFL_NULL
   end
 end

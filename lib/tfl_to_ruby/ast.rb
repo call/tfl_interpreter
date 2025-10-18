@@ -50,6 +50,24 @@ module TflToRuby
     end
   end
 
+  class ArrayLiteral < Node
+    attr_reader :elements
+
+    def initialize(elements)
+      @elements = elements # Array of AST nodes
+    end
+
+    def to_ruby(context_variable: 'data_context')
+      # Convert each element to Ruby code recursively
+      ruby_elements = @elements.map do |elem|
+        elem.to_ruby(context_variable: context_variable)
+      end.join(', ')
+
+      # Return a Ruby array literal
+      "[#{ruby_elements}]"
+    end
+  end
+
   # Represents the special TFL placeholder '%' used in function chaining.
   class ChainResult < Node
     # This node generates a simple variable name that the final Transpiler class
@@ -151,15 +169,19 @@ module TflToRuby
     # For chains, we return a list of expressions to be sequentially executed by
     # the main Transpiler loop, with the result of each step assigned to _tfl_result.
     def to_ruby(context_variable: 'data_context')
-      # The left side is the initial expression.
+      # Get the Ruby code for the left side (could be another chain or a simple expression)
       left_expr_ruby = @left.to_ruby(context_variable: context_variable)
 
-      # The right side is the function call applied to the result.
+      # Get the Ruby code for the right side (always a function call with % replaced)
       right_call_ruby = @right.to_ruby(context_variable: context_variable)
 
-      # We return an array of the two expressions. The final Transpiler class will
-      # interpret this array as a sequence of assignments to `_tfl_result`.
-      [left_expr_ruby, right_call_ruby]
+      # Return an array of expressions to be executed sequentially
+      # If left is already a chain, it will return an array, so we need to flatten
+      if left_expr_ruby.is_a?(Array)
+        left_expr_ruby + [right_call_ruby]
+      else
+        [left_expr_ruby, right_call_ruby]
+      end
     end
   end
 end

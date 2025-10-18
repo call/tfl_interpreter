@@ -78,7 +78,7 @@ module TflToRuby
       left
     end
 
-    # Parses the most fundamental components: literals, references, or grouped expressions.
+   # Parses the most fundamental components: literals, references, or grouped expressions.
     def parse_primary
       token = peek
 
@@ -97,6 +97,9 @@ module TflToRuby
         consume(:RPAREN, "Mismatched parentheses. Expected ')'")
         expr
 
+      when :LBRACKET
+        parse_array_literal
+
       when :IDENTIFIER
         # An identifier can be a FunctionCall or the start of a DataReference.
         if @tokens[@current + 1] && @tokens[@current + 1].type == :LPAREN
@@ -110,6 +113,25 @@ module TflToRuby
       end
     end
 
+    # Parses an array literal (e.g., '[1, 2, 3]' or '["a", "b"]')
+    def parse_array_literal
+      consume(:LBRACKET, "Expected '[' to start array literal")
+
+      elements = []
+
+      # Check for empty array
+      unless peek.type == :RBRACKET
+        loop do
+          elements << parse_expression(0)
+          break unless peek.type == :COMMA
+          consume(:COMMA)
+        end
+      end
+
+      consume(:RBRACKET, "Mismatched brackets. Expected ']' after array elements")
+
+      ArrayLiteral.new(elements)
+    end
     # Parses a complete data reference (e.g., 'event_data.user.id' or 'array[0]')
     def parse_data_reference
       segments = []

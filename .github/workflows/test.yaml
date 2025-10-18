@@ -14,7 +14,7 @@ jobs:
       uses: ruby/setup-ruby@v1
       with:
         ruby-version: '3.3'
-        bundler-cache: false # No Gemfile needed for this simple setup
+        bundler-cache: true # No Gemfile needed for this simple setup
 
-    - name: Run TFL Runner Script
-      run: ruby tfl_runner.rb
+    - name: Run tests
+      run: make test

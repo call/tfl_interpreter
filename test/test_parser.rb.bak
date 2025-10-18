@@ -1,0 +1,128 @@
+# test/test_parser.rb
+require 'minitest/autorun'
+require_relative '../lib/tfl_to_ruby/lexer'
+require_relative '../lib/tfl_to_ruby/parser'
+require_relative '../lib/tfl_to_ruby/ast'
+
+class TestParser < Minitest::Test
+  include TflToRuby
+
+  # Helper method to tokenize and parse a TFL string
+  def parse_tfl(tfl_string)
+    lexer = Lexer.new(tfl_string)
+    tokens = lexer.tokenize
+    parser = Parser.new(tokens)
+    parser.parse
+  end
+
+  # --- Test 1: Literal Values ---
+  def test_literals_and_data_reference
+    ast = parse_tfl('"Hello World"')
+    assert_instance_of Literal, ast
+    assert_equal :STRING, ast.type
+    assert_equal '"Hello World"', ast.value
+
+    ast = parse_tfl('123.45')
+    assert_instance_of Literal, ast
+    assert_equal :NUMBER, ast.type
+
+    ast = parse_tfl('TRUE')
+    assert_instance_of Literal, ast
+    assert_equal :TRUE_LITERAL, ast.type
+
+    ast = parse_tfl('user_data.name')
+    assert_instance_of DataReference, ast
+    assert_equal ["user_data", "name"], ast.segments
+  end
+
+  # --- Test 2: Function Call (Single Level) ---
+  def test_simple_function_call
+    ast = parse_tfl('UPCASE(data.email, "fallback")')
+
+    assert_instance_of FunctionCall, ast
+    assert_equal "UPCASE", ast.name
+    assert_equal 2, ast.arguments.size
+
+    # Argument 1: DataReference
+    arg1 = ast.arguments[0]
+    assert_instance_of DataReference, arg1
+    assert_equal ["data", "email"], arg1.segments
+
+    # Argument 2: Literal
+    arg2 = ast.arguments[1]
+    assert_instance_of Literal, arg2
+    assert_equal :STRING, arg2.type
+  end
+
+  # --- Test 3: Binary Operations and Precedence ---
+  def test_binary_operations_and_precedence
+    # TFL: 1 + 2 * 3 (Should be parsed as 1 + (2 * 3))
+    ast = parse_tfl('1 + 2 * 3')
+
+    # Root Node: BinaryOperation (PLUS)
+    assert_instance_of BinaryOperation, ast
+    assert_equal :PLUS, ast.operator
+
+    # Left side: Literal 1
+    assert_instance_of Literal, ast.left
+    assert_equal '1', ast.left.value
+
+    # Right side: BinaryOperation (STAR)
+    assert_instance_of BinaryOperation, ast.right
+    assert_equal :STAR, ast.right.operator
+
+    # Deep check: (2 * 3)
+    assert_equal '2', ast.right.left.value
+    assert_equal '3', ast.right.right.value
+  end
+
+  # --- Test 4: Nested Function Calls (IF condition) ---
+  def test_nested_expressions
+    # TFL: IF(SIZE(list) > 0, "Exists", "Empty")
+    ast = parse_tfl('IF(SIZE(list) > 0, "Exists", "Empty")')
+
+    # Root Node: FunctionCall (IF)
+    assert_instance_of FunctionCall, ast
+    assert_equal "IF", ast.name
+    assert_equal 3, ast.arguments.size
+
+    # Argument 1 (Condition): BinaryOperation (GREATER)
+    condition = ast.arguments[0]
+    assert_instance_of BinaryOperation, condition
+    assert_equal :GREATER, condition.operator
+
+    # Condition Left Side: FunctionCall (SIZE)
+    size_call = condition.left
+    assert_instance_of FunctionCall, size_call
+    assert_equal "SIZE", size_call.name
+    assert_equal ["list"], size_call.arguments[0].segments
+  end
+
+  # --- Test 5: Function Chaining ---
+  def test_function_chaining
+    # TFL: my_event.body |> UPCASE(%) |> DEFAULT(%, "EMPTY")
+    ast = parse_tfl('my_event.body |> UPCASE(%) |> DEFAULT(%, "EMPTY")')
+
+    # The entire expression should be a ChainExpression
+    assert_instance_of ChainExpression, ast
+
+    # Right side of the outermost chain: DEFAULT(%, "EMPTY")
+    outer_right = ast.right
+    assert_instance_of FunctionCall, outer_right
+    assert_equal "DEFAULT", outer_right.name
+
+    # Left side of the outermost chain (which is the first chain expression)
+    inner_chain = ast.left
+    assert_instance_of ChainExpression, inner_chain
+    assert_equal "UPCASE", inner_chain.right.name # Right side is UPCASE(%)
+
+    # Base of the chain (Left side of the inner chain): DataReference
+    base_ref = inner_chain.left
+    assert_instance_of DataReference, base_ref
+    assert_equal ["my_event", "body"], base_ref.segments
+
+    # Check the ChainResult placeholder in the arguments
+    assert_instance_of ChainResult, outer_right.arguments[0]
+    assert_instance_of ChainResult, inner_chain.right.arguments[0]
+  end
+end

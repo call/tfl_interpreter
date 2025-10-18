@@ -21,6 +21,7 @@ MOCK_DATA = {
     "email" => "ALICE@EXAMPLE.COM"
   },
   "data_array" => [10, 20, 30],
+  "date_string" => "2024-06-15T12:34:56Z",
   "message" => nil,
   "nested" => {
     "key" => "value"
@@ -50,26 +51,45 @@ end
 # --- 2. Test Cases ---
 
 TFL_TEST_CASES = {
-  # Simple Function Call (will use built-in Ruby method after transpilation)
-  "Simple Function Call" => 'UPCASE("hello")',
+  # # Simple Function Call (will use built-in Ruby method after transpilation)
+  # "Simple Function Call" => 'UPCASE("hello")',
 
-  # Data Access (requires the safe tfl_get helper)
-  "Safe Data Access" => 'user_action.name',
+  # # Data Access (requires the safe tfl_get helper)
+  # "Safe Data Access" => 'user_action.name',
 
-  # Handling missing data (should return TFL_NULL)
-  "Missing Data Check" => 'missing_action.property',
+  # # Handling missing data (should return TFL_NULL)
+  # "Missing Data Check" => 'missing_action.property',
 
-  # Binary Operation (requires parenthesis and type checking)
-  "Binary Logic" => 'user_action.status = "active"',
+  # # Binary Operation (requires parenthesis and type checking)
+  # "Binary Logic" => 'user_action.status = "active"',
 
-  # Conditional Logic (requires tfl_IF helper)
-  "Conditional IF" => 'IF(data_array[0] > 5, "Large Array", "Small Array")',
+  # # Conditional Logic (requires tfl_IF helper)
+  # "Conditional IF" => 'IF(data_array[0] > 5, "Large Array", "Small Array")',
 
-  # Function Chaining (requires sequential assignments via Transpiler)
-  "Function Chaining" => 'user_action.email |> DOWNCASE(%) |> DEFAULT(%, "unknown")',
+  # # Function Chaining (requires sequential assignments via Transpiler)
+  # "Function Chaining" => 'user_action.email |> DOWNCASE(%) |> DEFAULT(%, "unknown")',
 
-  # Nested function calls (demonstrates recursive AST traversal)
-  "Nested Call" => 'SIZE(data_array)'
+  # # Nested function calls (demonstrates recursive AST traversal)
+  # "Nested Call" => 'SIZE(data_array)',
+
+  # # Parse a date
+  # "Date Parsing" => 'DATE("twenty-four days ago", "%Y-%m-%d")',
+
+  # # JOIN function
+  # "Join Array" => 'JOIN([1,2,3,4,5]), "-")',
+
+  # # Size
+  # "Size" => 'SIZE(DATE("three days ago", "%s"))',
+
+  # #Literal Array
+  # "SizeLiteralArray" => 'SIZE([1,2,3,4,5,6])',
+
+  # "APPEND Simple" => 'APPEND("app", "end", "ing")',
+  # "APPEND With Data" => 'APPEND(user_action.name, " is ", user_action.status)',
+  # "APPEND With Null" => 'APPEND("hello", missing_action.property, "world")',
+
+  # "test" => "JOIN([JOIN([12,23]),3,4,5])"
+  "DATE" => 'DATE("01/02/2023")'
 }.freeze
 
 
@@ -80,6 +100,9 @@ puts "Mock Input Data: #{MOCK_DATA.to_json}"
 puts "---------------------------\n\n"
 
 context = TflRunnerContext.new(MOCK_DATA)
+
+result = context.tfl_DATE("01/02/2023", "%Y-%m-%d")
+puts(context)
 
 TFL_TEST_CASES.each do |title, tfl_expression|
   puts "TFL Expression: #{tfl_expression}"
