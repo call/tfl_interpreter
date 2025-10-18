@@ -17,4 +17,6 @@ jobs:
         bundler-cache: true # No Gemfile needed for this simple setup
 
     - name: Run tests
-      run: make test
+      run: |
+        bundle install
+        make test
